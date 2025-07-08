@@ -3,6 +3,9 @@
 
 #include <Arduino.h> // For uint8_t
 
+const uint8_t wakeUpRequest[] = {0x80, 0x3F, 0x01, 0x05, 0x8A, 0x0D}; // Request to wake up the meter
+// Request to get the CRC (Cyclic Redundancy Check) from the meter, answer 8 to 11
+const uint8_t getCRCRequest[] = {0x80, 0x3F, 0x10, 0x01, 0x00, 0x9A, 0x67, 0x73, 0x0D}; // Request to get CRC from the meter
 // Request to wake up the meter and get basic info
 const uint8_t initRequest[] = {0x80, 0x3F, 0x10, 0x01, 0x03, 0xE9, 0x7C, 0xD4, 0x0D};
 // Request for current meter readings
