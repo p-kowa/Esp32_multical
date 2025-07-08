@@ -1,4 +1,4 @@
-# Kamstrup Multical21 Reader
+# Kamstrup Multical21 Reader for Node-Red or Home Assistant 
 ESP32 based optical reader / sniffer for Kamstrup Multical21 water meters.
 
 ## Project Structure
