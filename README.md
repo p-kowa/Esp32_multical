@@ -91,6 +91,7 @@ The device can act as a protocol analyzer between the Kamstrup LogView Tool and 
 #### MQTT Commands
 - Subscribe to topic: `<configured_topic>/input`
 - Available commands:
+  - Send `current` to receive daily statistics on `<configured_topic>/Current`
   - Send `daily` to receive daily statistics on `<configured_topic>/Daily`
   - Send `monthly` to receive monthly data on `<configured_topic>/Monthly`
   - Send `yearly` to receive yearly data on `<configured_topic>/Yearly`
