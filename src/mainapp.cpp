@@ -218,7 +218,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 // --- Setup Function ---
 void setup()
 {
-  // In setup(), replace the single autoConnect line with:
   while (!wifiManager.autoConnect("Multical_AP")) {
       wifiConnectAttempts++;
       Serial.printf("Failed to connect to WiFi. Attempt %d of %d\n", 
@@ -234,6 +233,8 @@ void setup()
   }
   wifiConnectAttempts = 0;
   Serial.println("WiFi connected successfully!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
   getPreferences(mqttPublishInterval, mqtt_server, mqtt_topic, mqtt_user, mqtt_pass, mqtt_client); // Load preferences
   checkmqttClient();
 
