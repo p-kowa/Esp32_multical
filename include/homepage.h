@@ -145,10 +145,23 @@ const char index_html[] PROGMEM = R"rawliteral(
         console.error('WebSocket error:', event);
         document.getElementById('status').innerText = 'WebSocket error.';
       }
-  
+      function isJson(str) {
+        try {
+          JSON.parse(str);
+        } catch (e) {
+          return false;
+        }
+        return true;
+      }
+    
       function onMessage(event) {
-        var logDiv = document.getElementById('log');
         var message = event.data;
+        // Check if this is live data update
+        if (isJson(message)) {
+          handleDataUpdate(message);
+          return; // Don't process as sniffing data
+        }
+        var logDiv = document.getElementById('log');
         var span = document.createElement('span');
   
         var timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -271,6 +284,43 @@ const char index_html[] PROGMEM = R"rawliteral(
         alert(data);
     });
     }
+    // New separate handler for data updates
+function handleDataUpdate(message) {
+  try {
+    var data = JSON.parse(message);
+    
+    // Only update if it's current data
+    if (data.AnswerType === 'Current') {
+      displayLiveData(data);
+    }
+  } catch (error) {
+    console.error('Error parsing live data:', error);
+  }
+}
+
+function displayLiveData(data) {
+  const values = {
+    consumption: data.WaterConsumption,
+    flow: data.WaterFlow + ' l/h',
+    waterTemp: data.WaterTemp + ' °C',
+    deviceTemp: data.DeviceTemp + ' °C',
+    flowLabel: 'Water flow:',
+    waterTempLabel: 'Water temp:',
+    deviceTempLabel: 'Device temp:'
+  };
+
+  const html = `
+    <div class="data-card">
+      <div><span class="label">Water consumption:</span> <span class="value">${values.consumption}</span></div>
+      <div><span class="label">${values.flowLabel}</span> <span class="value">${values.flow}</span></div>
+      <div><span class="label">${values.waterTempLabel}</span> <span class="value">${values.waterTemp}</span></div>
+      <div><span class="label">${values.deviceTempLabel}</span> <span class="value">${values.deviceTemp}</span></div>
+      <div><span class="label">Serial number:</span> <span class="value">${data.SerialNumber}</span></div>
+      <div><span class="label">Last updated:</span> <span class="value">${new Date().toLocaleTimeString()}</span></div>
+    </div>
+  `;
+  document.getElementById("currentData").innerHTML = html;
+}
 	  function saveSettings() {
         var fupdate = document.getElementById("fupdate").value;
         var mqtt_server = document.getElementById("mqtt_server").value;

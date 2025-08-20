@@ -200,7 +200,7 @@ String DataHandler::getCurrentData(){
   kamData.WaterTemp = getSingleDecimalValue(optical_eye_read_buffer, 24);
   kamData.DeviceTemp = getSingleDecimalValue(optical_eye_read_buffer, 30);
 
-  //ws.textAll(kamData.toJson());
+  ws.textAll(kamData.toJson());
   return kamData.toJson();
 
 } 
@@ -241,7 +241,7 @@ String DataHandler::getDailyData()
   if (bytesRead == 0) { ws.textAll("No data for TempMeterAvg_DayRequest of getDailyData"); return ""; }
   kamData.DeviceTempAvg = getSingleDecimalValue(optical_eye_read_buffer, 8);
   
-  //ws.textAll(kamData.toJson());
+  ws.textAll(kamData.toJson());
   return kamData.toJson();
 }
 

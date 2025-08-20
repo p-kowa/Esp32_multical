@@ -16,6 +16,7 @@ String mqtt_user = ""; // MQTT username, if required
 String mqtt_pass = ""; // MQTT password, if required
 String mqtt_topic = "";
 String publishInfoTopic ="/info";
+bool isMqttConnected = true;
 
 
 unsigned long mqttPublishInterval = 0; // 3 minutes
@@ -215,6 +216,49 @@ void callback(char* topic, byte* payload, unsigned int length) {
   
 }
 
+void PublishMqttInfo() {
+  unsigned long now = millis();
+
+  // Handle MQTT reconnection
+  if (!mqttClient.connected()) {
+    if (now - lastMqttReconnectAttempt > mqttReconnectInterval) {
+      lastMqttReconnectAttempt = now;
+      reconnectMQTT();
+    }
+  } else {
+    mqttClient.loop();
+  }
+
+  // Call sniffer if in SNIFFING state
+  if (dataHandlerInstance.currentState == DataHandler::SNIFFING) {
+    dataHandlerInstance.sniffer();
+  }
+
+  // Publish data at the defined interval
+  if (now - lastMqttPublishTime > mqttPublishInterval) {
+    dataHandlerInstance.requestType = RequestType::CURRENT;
+    lastMqttPublishTime = now;
+    String publishTopic = getPublishTopic(dataHandlerInstance.requestType);
+    String data = dataHandlerInstance.dataHandler(dataHandlerInstance.requestType);
+    if (data.length() > 0 && mqttClient.connected()) {
+      mqttClient.publish(publishTopic.c_str(), data.c_str());
+    }
+  }
+}
+
+void DisplayWaterData(){
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastMqttPublishTime > mqttPublishInterval)
+  {
+    dataHandlerInstance.requestType = RequestType::CURRENT;
+    lastMqttPublishTime = currentMillis;  
+    String data = dataHandlerInstance.dataHandler(dataHandlerInstance.requestType);
+    if (data.length() > 0){
+    }
+  }
+}
+
+
 // --- Setup Function ---
 void setup()
 {
@@ -279,8 +323,16 @@ void setup()
       return;
     }
     mqttPublishInterval = fupdate.toInt() * 1000; // Convert to milliseconds
-    setPreferences(mqttPublishInterval, mqtt_server, mqtt_topic, mqtt_user, mqtt_pass, mqtt_client); // Save the settings to preferences
-    request->send(200, "text/plain", "Settings saved"); });
+    setPreferences(mqttPublishInterval, mqtt_server, mqtt_topic, mqtt_user, mqtt_pass, mqtt_client);
+    WiFiClient testClient;
+    isMqttConnected = false;
+    if (testClient.connect(mqtt_server.c_str(), mqtt_port)) {
+        isMqttConnected = true;
+        testClient.stop();
+        request->send(200, "text/plain", "Settings saved and MQTT server is reachable.");
+    } else {
+        request->send(200, "text/plain", "Settings saved, but MQTT server is NOT reachable.");
+    } });
     
   server.on("/getSettings", HTTP_GET, [](AsyncWebServerRequest *request){
     getPreferences(mqttPublishInterval, mqtt_server, mqtt_topic, mqtt_user, mqtt_pass, mqtt_client);
@@ -296,50 +348,38 @@ void setup()
 });
 
   server.begin();
+  int retryCount = 0;
   // --- MQTT Setup ---
-  while (mqtt_server.length() == 0)
-  {
-    delay(1000);
-    getPreferences(mqttPublishInterval, mqtt_server, mqtt_topic, mqtt_user, mqtt_pass, mqtt_client);
-    ws.textAll("MQTT server address is empty. Please configure it in the settings.");
-     // Re-fetch preferences to ensure mqtt_server is set
-  } 
-  mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
-  mqttClient.setCallback(callback);
-  reconnectMQTT();
+  if(isMqttConnected){
+    while (mqtt_server.length() == 0)
+    {
+      delay(1000);
+      getPreferences(mqttPublishInterval, mqtt_server, mqtt_topic, mqtt_user, mqtt_pass, mqtt_client);
+      ws.textAll("MQTT server address is empty. Please configure it in the settings.");
+      retryCount++;
+      if (retryCount >= 10) {
+        ws.textAll("Failed to retrieve MQTT server address after 10 attempts.");
+        isMqttConnected = false; // Stop trying to connect if we can't get the server address
+        break;
+      }
+      // Re-fetch preferences to ensure mqtt_server is set
+    }
+    if(isMqttConnected){
+      mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
+      mqttClient.setCallback(callback);
+      reconnectMQTT();
+    }    
+  }
 }
 
 // --- Loop Function ---
 void loop()
-{
- 
-  if (!mqttClient.connected())
+{ 
+  if (isMqttConnected)
   {
-    unsigned long now = millis();
-    if (now - lastMqttReconnectAttempt > mqttReconnectInterval)
-    {
-      lastMqttReconnectAttempt = now;
-      reconnectMQTT();
-    }
-  }
-  else
+    PublishMqttInfo();
+  }else
   {
-    mqttClient.loop();
-  }
-  if (dataHandlerInstance.currentState == DataHandler::SNIFFING)
-  {
-    dataHandlerInstance.sniffer(); // Call the sniffer method
-  }
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastMqttPublishTime > mqttPublishInterval)
-  {
-    dataHandlerInstance.requestType = RequestType::CURRENT;
-    lastMqttPublishTime = currentMillis;  
-    String publishTopic = getPublishTopic(dataHandlerInstance.requestType);
-    String data = dataHandlerInstance.dataHandler(dataHandlerInstance.requestType);
-    if (data.length() > 0){
-      mqttClient.publish(publishTopic.c_str(), data.c_str());
-    }
-    
+    DisplayWaterData();
   }
 }
